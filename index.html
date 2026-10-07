@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Учет посещаемости школы — Конвертер отчетов</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Шапка -->
+    <header class="app-header">
+      <div class="header-content">
+        <div class="logo-area">
+          <div class="school-logo-thumb" id="schoolLogoThumb" role="button" tabindex="0" title="Нажмите, чтобы открыть фотогалерею школы" aria-label="Открыть фотогалерею МОУ СОШ №12">
+            <img src="images/school-image.jpg" alt="МОУ СОШ №12" class="school-thumb-img">
+          </div>
+          <div>
+            <h1>Школьная посещаемость</h1>
+            <p class="subtitle">МОУ СОШ №12 • Автоматизация создания отчетов посещаемости</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <!-- Секция 1: Загрузка файла -->
+      <section class="card upload-card" id="uploadSection">
+        <div class="card-title">
+          <span class="step-num">1</span>
+          <h2>Загрузка выгрузки из формы</h2>
+        </div>
+        
+        <div class="dropzone" id="dropZone">
+          <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xltx" hidden>
+          <div class="dropzone-content">
+            <div class="dropzone-icon">📥</div>
+            <h3>Перетащите сюда Excel-файл с ответами формы</h3>
+            <p>или <button type="button" class="btn-link" id="browseBtn">выберите файл на компьютере</button></p>
+            <span class="file-hint">Поддерживаются файлы .xlsx (экспорт из Яндекс или Google Форм)</span>
+          </div>
+        </div>
+
+        <div class="file-info-bar hidden" id="fileInfoBar">
+          <div class="file-info-details">
+            <span class="file-icon">📄</span>
+            <div>
+              <strong id="fileName">Файл не выбран</strong>
+              <div class="file-meta" id="fileMeta">0 записей</div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="changeFileBtn">Выбрать другой файл</button>
+        </div>
+      </section>
+
+      <!-- Секция 2: Выбор периода (появляется после загрузки) -->
+      <section class="card period-card hidden" id="periodSection">
+        <div class="card-title">
+          <span class="step-num">2</span>
+          <h2>Период формирования отчета</h2>
+          <span class="period-badge" id="periodSummaryBadge">Листов в отчете: 0</span>
+        </div>
+
+        <div class="period-modes">
+          <label class="mode-pill active">
+            <input type="radio" name="periodMode" value="all" checked>
+            <span>📅 Все даты из файла</span>
+          </label>
+          <label class="mode-pill">
+            <input type="radio" name="periodMode" value="month">
+            <span>🗓️ За конкретный месяц</span>
+          </label>
+          <label class="mode-pill">
+            <input type="radio" name="periodMode" value="range">
+            <span>⏱️ Диапазон дат</span>
+          </label>
+          <label class="mode-pill">
+            <input type="radio" name="periodMode" value="single">
+            <span>📌 Один конкретный день</span>
+          </label>
+        </div>
+
+        <!-- Подпанели настроек периода -->
+        <div class="period-controls">
+          <!-- Режим: Месяц -->
+          <div class="control-row hidden" id="monthControl">
+            <label for="monthSelect">Выберите месяц:</label>
+            <select id="monthSelect" class="form-select"></select>
+          </div>
+
+          <!-- Режим: Диапазон -->
+          <div class="control-row hidden" id="rangeControl">
+            <div class="date-input-group">
+              <label for="dateFrom">С даты:</label>
+              <input type="date" id="dateFrom" class="form-input">
+            </div>
+            <div class="date-input-group">
+              <label for="dateTo">По дату:</label>
+              <input type="date" id="dateTo" class="form-input">
+            </div>
+          </div>
+
+          <!-- Режим: Один день -->
+          <div class="control-row hidden" id="singleControl">
+            <label for="singleDateSelect">Выберите дату:</label>
+            <select id="singleDateSelect" class="form-select"></select>
+          </div>
+        </div>
+
+        <!-- Главная кнопка скачивания -->
+        <div class="action-buttons-bar">
+          <button type="button" class="btn btn-primary btn-lg" id="downloadPeriodBtn">
+            <span class="btn-icon">📥</span>
+            <span>Скачать сформированный Excel</span>
+            <span class="btn-subtext" id="downloadSubtext">(все выбранные дни отдельными листами)</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Секция 3: Предпросмотр и статистика (появляется после загрузки) -->
+      <section class="card preview-card hidden" id="previewSection">
+        <div class="card-title preview-header-row">
+          <div class="title-with-step">
+            <span class="step-num">3</span>
+            <h2>Предпросмотр данных</h2>
+          </div>
+          
+          <div class="date-switcher">
+            <label for="previewDateSelect">Смотреть данные за:</label>
+            <select id="previewDateSelect" class="form-select"></select>
+          </div>
+        </div>
+
+        <!-- Предупреждения (дубликаты и т.д.) -->
+        <div class="alerts-container hidden" id="alertsContainer"></div>
+
+        <!-- Карточки статистики за выбранный день -->
+        <div class="stats-grid">
+          <div class="stat-card total-card">
+            <div class="stat-label">Всего отсутствуют</div>
+            <div class="stat-value" id="statTotalAbsent">0</div>
+            <div class="stat-detail">
+              <span>Болезнь: <strong id="statTotalSick">0</strong></span>
+              <span>Уваж.: <strong id="statTotalExcused">0</strong></span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">1–4 классы</div>
+            <div class="stat-value" id="statGrades14">0</div>
+            <div class="stat-detail">
+              <span>Болезнь: <strong id="statSick14">0</strong></span>
+              <span>Уваж.: <strong id="statExcused14">0</strong></span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">5–9 классы</div>
+            <div class="stat-value" id="statGrades59">0</div>
+            <div class="stat-detail">
+              <span>Болезнь: <strong id="statSick59">0</strong></span>
+              <span>Уваж.: <strong id="statExcused59">0</strong></span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">10–11 классы</div>
+            <div class="stat-value" id="statGrades1011">0</div>
+            <div class="stat-detail">
+              <span>Болезнь: <strong id="statSick1011">0</strong></span>
+              <span>Уваж.: <strong id="statExcused1011">0</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Панель быстрых копирований -->
+        <div class="quick-copy-bar">
+          <button type="button" class="btn btn-secondary" id="copySummaryBtn">
+            <span class="btn-icon">💬</span> Скопировать сводку для мессенджера
+          </button>
+          <button type="button" class="btn btn-warning" id="copyMissingBtn">
+            <span class="btn-icon">⚠️</span> Скопировать список должников (<span id="missingBtnCount">0</span>)
+          </button>
+        </div>
+
+        <!-- Вкладки предпросмотра -->
+        <div class="tabs-header">
+          <button type="button" class="tab-btn active" data-tab="tabTable">Таблица классов (29)</button>
+          <button type="button" class="tab-btn" data-tab="tabSummary">Текстовая сводка</button>
+          <button type="button" class="tab-btn" data-tab="tabMissing">
+            Не сдали отчет <span class="tab-badge" id="tabMissingBadge">0</span>
+          </button>
+        </div>
+
+        <!-- Содержимое вкладок -->
+        <div class="tab-contents">
+          <!-- Вкладка 1: Таблица классов -->
+          <div class="tab-pane active" id="tabTable">
+            <div class="table-filters">
+              <span class="filter-label">Фильтр:</span>
+              <button type="button" class="filter-chip active" data-filter="all">Все (29)</button>
+              <button type="button" class="filter-chip" data-filter="absent">Только с отсутствующими</button>
+              <button type="button" class="filter-chip" data-filter="missing">Не сдали отчет</button>
+            </div>
+
+            <div class="table-wrapper">
+              <table class="data-table" id="classesTable">
+                <thead>
+                  <tr>
+                    <th>Класс</th>
+                    <th>Всего</th>
+                    <th>По болезни</th>
+                    <th>ФИО (болезнь)</th>
+                    <th>По уваж.</th>
+                    <th>ФИО (уваж.)</th>
+                    <th>Статус</th>
+                  </tr>
+                </thead>
+                <tbody id="classesTableBody">
+                  <!-- Заполняется динамически -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Вкладка 2: Текст для мессенджера -->
+          <div class="tab-pane" id="tabSummary">
+            <div class="summary-box">
+              <pre id="summaryTextContent"></pre>
+              <button type="button" class="btn btn-primary btn-sm copy-float-btn" id="copySummaryFloatBtn">
+                📋 Копировать
+              </button>
+            </div>
+          </div>
+
+          <!-- Вкладка 3: Классы без отчета -->
+          <div class="tab-pane" id="tabMissing">
+            <div class="missing-classes-box" id="missingClassesBox">
+              <p class="missing-desc">Классы, классные руководители которых еще не отправили форму за этот день:</p>
+              <div class="missing-tags" id="missingTagsContainer"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Модальное окно галереи фотографий школы (Lightbox) -->
+  <div class="image-modal-backdrop hidden" id="schoolPhotoModal" role="dialog" aria-modal="true" aria-label="Фотогалерея МОУ СОШ №12">
+    <div class="image-modal-content">
+      <button type="button" class="image-modal-close" id="closePhotoModalBtn" aria-label="Закрыть">✕</button>
+      <div class="image-modal-body">
+        <div class="modal-image-stage">
+          <button type="button" class="gallery-nav-btn prev" id="galleryPrevBtn" aria-label="Предыдущее фото">❮</button>
+          <img src="images/school-image.jpg" alt="МОУ СОШ №12" class="modal-school-img" id="modalSchoolImg">
+          <button type="button" class="gallery-nav-btn next" id="galleryNextBtn" aria-label="Следующее фото">❯</button>
+        </div>
+        <div class="image-modal-caption">
+          <div class="caption-text-group">
+            <h3 id="galleryTitle">МОУ СОШ №12</h3>
+            <p id="gallerySubtitle">Главный фасад здания школы и вход</p>
+          </div>
+          <div class="gallery-controls-bar">
+            <div class="gallery-dots" id="galleryDots"></div>
+            <div class="gallery-counter" id="galleryCounter">1 / 5</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Всплывающие уведомления (Toast) -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Подключение ExcelJS (локально с запасным CDN) -->
+  <script src="exceljs.min.js"></script>
+  <script>
+    if (typeof ExcelJS === 'undefined') {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"><\/script>');
+    }
+  </script>
+  <!-- Основная логика приложения -->
+  <script src="app.js"></script>
+</body>
+</html>
